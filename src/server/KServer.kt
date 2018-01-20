@@ -1,51 +1,57 @@
 package server
 
-import java.net.*;
-import java.io.*;
+import java.net.*
+import java.io.*
 
 /**
- * KServer: A simple Kotlin-based TCP server that accepts connections from
- * clients and sends and receives a simple message
+ * KServer: A Kotlin-based TCP game server
  *
  * @author Alex Swan
  * @version 2018.01.08.0
  * @since 2018.01.08
  */
-class KServer constructor(IP: String = "localhost", port: Int = 61673) : Thread() {
+class KServer constructor(
+        /** Server IP */
+        val IP: String = "localhost",
+        /** Port for server to listen on */
+        val port: Int = 61673): Thread() {
 
-    /** Server IP */
-    private val IP = IP
-    /** Port for server to listen on */
-    private val port = port
-    /** ServerSocket that accepts connections */
-    private val listener = ServerSocket(port)
+    /** Name of the program */
+    val title = "Swan Server"
+    /** Listener for new connections */
+    private val listener = LoginListener(this)
+    /** A set of active client connections */
+    val connections = HashSet<Connection>()
+    /** Is the server online */
+    val online = true
 
     /** Runs the server on a continuous loop accepting and interacting with clients */
     override fun run() {
-        while(true){
-            try{
 
-                println("Waiting for clients on $IP:$port")
-                val server = listener.accept()
-                println("Connected to ${server.remoteSocketAddress}")
-                val inp = DataInputStream(server.getInputStream())
-                println("Client says: ${inp.readUTF()}")
-                val outp = DataOutputStream(server.getOutputStream())
-                outp.writeUTF("Thanks for connecting to ${server.localSocketAddress}")
-                server.close()
+        listener.start()
 
-            }catch(e: IOException){
-                e.printStackTrace()
-                println("Failure.")
-                break
-            }
+        while(online){
+            Thread.sleep(1000)
         }
+
     }
 
-    /** Launches the server
-     * @param args Launch arguments (unused) */
-    fun main(args : Array<String>) {
-        KServer().start()
+    fun login(conn: Socket, uName: String){
+        println("$uName logged in")
+    }
+
+    fun fatalError(msg: String){
+        println("Fatal error: $msg")
+        println("Shutting down")
+        System.exit(-1)
+    }
+
+    companion object{
+        /** Launches the server
+         * @param args Launch arguments (unused) */
+        @JvmStatic fun main(args : Array<String>) {
+            KServer().start()
+        }
     }
 
 }

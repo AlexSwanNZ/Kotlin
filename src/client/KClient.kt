@@ -17,15 +17,11 @@ import javafx.scene.layout.VBox
 import javafx.scene.shape.Line
 import javafx.scene.text.Text
 import javafx.stage.Stage
-import java.io.DataInputStream
-import java.io.DataOutputStream
 import java.io.FileInputStream
-import java.io.IOException
-import java.net.Socket
 
 /**
- * KClient: A simple Kotlin-based JavaFX application implementing
- *      - Rudimentary TCP networking
+ * KClient: JavaFX GUI for a simple Kotlin-based chat program.
+ * Implements:
  *      - Graphic display of an image, text and basic geometry
  *      - User input and basic console display
  *
@@ -35,14 +31,14 @@ import java.net.Socket
  */
 class KClient: Application(){
 
-    /** IP address of the game server */
-    private val serverIP = "localhost"
-    /** Port of the game server */
-    private val serverPort = 61673
+    /** Command line arguments */
+    //private val args = args
     /** Version of the program */
     private val version = "2018.01.06.0"
     /** Name of the program */
     private val title = "Swan Client"
+    /** Connection manager */
+    private var net: Connection? = null
 
     /** Width of the client window */
     private val width: Double = 590.0
@@ -82,6 +78,7 @@ class KClient: Application(){
                 //Detects commands beginning with the forward slash delimiter
                 if (tf.text.startsWith("/"))
                     execute(tf.text.substring(1))
+                else net?.sendMessage(tf.text)
 
                 tf.clear(); e.consume()
 
@@ -161,14 +158,14 @@ class KClient: Application(){
 
     /** Displays introduction information to the user */
     private fun intro(){
-        write("Welcome to Swan Client. " +
+        write("Welcome to $title. " +
                 "To connect to the server type '/connect'")
         write("For more commands, type '/help'")
     }
 
     /** Writes text to the TextArea output
      * @param string A String to write */
-    private fun write(string: String){
+    fun write(string: String){
         chatArray[chatIdx] = string
         chatIdx = ++chatIdx % textLines
         refreshChat()
@@ -196,33 +193,9 @@ class KClient: Application(){
     /** Writes help information to the TextArea output */
     private fun writeHelp(){
         write("\t/connect -> connects to the server\t\t" +
-                "/quit, /exit -> exit Swan Client")
+                "/quit, /exit -> exit $title")
         write("\t/clear -> clears the text area\t\t\t" +
-                "/version -> Swan Client version")
-    }
-
-    /** Connects to the server, then sends and receives a simple UTF message
-     * before closing the connection */
-    private fun connect(){
-        try{
-            write("Connecting to $serverIP:$serverPort...")
-            val conn = Socket(serverIP, serverPort)
-
-            write("Connected to ${conn.remoteSocketAddress}")
-            val outp = DataOutputStream(conn.getOutputStream())
-
-            //Write a message to the server
-            outp.writeUTF("Hello from ${conn.localSocketAddress}")
-            val inp = DataInputStream(conn.getInputStream())
-
-            //Read and display a message from te server
-            write("Server says: ${inp.readUTF()}")
-            conn.close()
-        }catch(e: IOException){
-            write("Connection failure.")
-            e.printStackTrace()
-        }
-
+                "/version -> $title version")
     }
 
     /** Executes user commands
@@ -231,12 +204,34 @@ class KClient: Application(){
         when(string){
             "quit"      -> System.exit(0)
             "exit"      -> System.exit(0)
-            "version"   -> write("Swan Client version: $version")
+            "version"   -> write("$title version: $version")
             "clear"     -> clearChat()
             "help"      -> writeHelp()
             "connect"   -> connect()
+            "disconnect"-> disconnect()
             else        -> write("Error: command \"$string\"not recognised.")
         }
+    }
+
+    /** Launches a connection to the server */
+    private fun connect(){
+        if(net != null && net!!.active){
+            write("You are already connected")
+            return
+        }
+        net = Connection(this)
+        net?.start()
+        when (net?.active) {
+            true -> write("Successfully connected to ${net?.getAddress()}")
+            false ->{
+                write("Connection failure.")
+                net = null
+            }
+        }
+    }
+
+    private fun disconnect(){
+        net = net?.disconnect()
     }
 
     /** Object for launching Application */
@@ -247,5 +242,4 @@ class KClient: Application(){
             launch(KClient::class.java)
         }
     }
-
 }
